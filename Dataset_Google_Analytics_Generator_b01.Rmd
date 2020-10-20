@@ -1,0 +1,221 @@
+---
+title: "Google Analytics Dataset Generator (Lite)"
+output: html_notebook
+---
+
+Creado por [Miguel Prieto](https://es.linkedin.com/in/miguelprietoin) como [R Markdown](http://rmarkdown.rstudio.com) Notebook para generar dataset ficticéos de Google Analitics con compras y campañas para realizar análisis o visualizaciones. 
+
+He intentado simplificar el proceso y no usar ninguna libreria, ni estrcturas compleja para que sea modificable sin conocimientos de R.
+
+Para generar el dataset debes ir ejecutando (Botón *Run*) o pulsar  *Cmd+Shift+Enter* con el cursos sobre el campo. 
+
+Tanto el generador como el dataset generado sigue una licencia @GNU.(Usalo para lo que quieras y si tienes dudas o quieres mandarme sugerencias no lo dudes)
+
+Un saludo
+Miguel
+
+----------------------------------------------------------
+
+## Paso 1. Creación de una foto global del dataset
+
+Configura las variables superioes y <b>ejecuta para generar una matriz con  "ID_campana", "Nombre_campana", "Ad_spot", "Impresiones", "Ad_cost", "Click", "Bounces", "Sesions", "Transacciones", "Ecomerce", "Goal" que <b>te permite ver un resumen de los datos finales</b> sin tener que esperar por tiempos de carga.
+
+```{r}
+# -----------------------------------------------------
+# Configuración
+# -----------------------------------------------------
+
+  options(OutDec= ",")   # Separador de decimales
+# Configuración de inversión
+  Inversion_por_campana = 100000 # Inversión en campañas #Número (ejemplo "5000")
+# Configuración de campañas
+  Num_campanas = 12  #Número de campañas (ejemplo 3)
+  Tipos_de_campanas <- c("Search", "Display", "PR" , "RRSS", "MMA")  #Texto (ejemplo "Search")
+  Prob_Tipos_de_campanas <- c(40,20,10 , 10, 15)  #Número 
+  CPC_de_Referencia_de_campanas <- c(0.3, 0.2, 0.4 , 0.2, 0.4) #Número (ejemplo "0.2")
+  Bounce_de_Referencia_de_campanas <- c(0.30, 0.49, 0.12 , 0.20, 0.12) #Número (ejemplo "0.2")
+  Transaciones_de_Referencia_de_campanas <- c(0.010, 0.002, 0.005 , 0.05, 0.25) #Número (ejemplo "0.2")
+  Roi_de_Referencia_de_campanas <- c(10, 5, 15 , 3, 25) #Número (ejemplo "5")
+  Goals_de_Referencia_de_campanas <- c(0.0040, 0.010, 0.05 , 0.05, 0.025) #Número (ejemplo "0.2")
+# Rangos de aleatoriedad
+  desde = 0.5
+  hasta = 2
+  
+# -----------------------------------------------------
+# CODIGO
+# -----------------------------------------------------
+
+  matriz_campanas <<-  matrix( NA, Num_campanas, 11)
+  colnames(matriz_campanas) <- c("ID_campana", "Nombre_campana", "Ad_spot", "Impresiones", "Ad_cost", "Click", "Bounces", "Sesions", "Transacciones", "Ecomerce", "Goal" )
+  matriz_campanas_indices <<-  matrix( NA, Num_campanas, 8)
+  colnames(matriz_campanas_indices) <- c("ID_campana", "CPM", "CPC","Bounce_rate", "CPCe", "CPA", "ROI", "Ticket_Medio" )
+  sesiones_totales = 0
+  for(i in 1:Num_campanas) {
+  # ID
+     matriz_campanas[i,1] <- i
+     matriz_campanas_indices[i,1] <- i
+  # Tipo 
+     matriz_campanas[i,3] <-  sample(Tipos_de_campanas[], 1, prob= Prob_Tipos_de_campanas)
+     tipo_de_promo = which(Tipos_de_campanas == matriz_campanas[i,3])
+  # Coste
+     matriz_campanas[i,5] <- round( sample((Inversion_por_campana/Num_campanas *hasta):(Inversion_por_campana/Num_campanas * desde ),1,replace=T))
+  # Clicks
+    CPC_temp <- runif(1,(CPC_de_Referencia_de_campanas[tipo_de_promo] * desde),(CPC_de_Referencia_de_campanas[tipo_de_promo] * hasta )) 
+  matriz_campanas[i,6] <- round ( as.numeric(matriz_campanas[i,5] ) / CPC_temp )
+  # Impresiones
+    matriz_campanas[i,4] <- round ( as.numeric(matriz_campanas[i,6] ) / CPC_temp )
+  # Bounce   
+    Bounce_ratio_temp <- runif(1,(Bounce_de_Referencia_de_campanas[tipo_de_promo] * desde),(Bounce_de_Referencia_de_campanas[tipo_de_promo] * hasta )) 
+    if (Bounce_ratio_temp>0.99){
+        Bounce_ratio_temp = 0.99
+    }
+    matriz_campanas[i,7] <- round ( as.numeric(matriz_campanas[i,6] ) * Bounce_ratio_temp )
+  # Sesiones
+    matriz_campanas[i,8] <- ( as.numeric(matriz_campanas[i,6]) - as.numeric(matriz_campanas[i,7] ))
+    sesiones_totales = sesiones_totales + ( as.numeric(matriz_campanas[i,6]) - as.numeric(matriz_campanas[i,7] ))
+  # Transaciones
+    Transacciones_ratio_temp <- runif(1,(Transaciones_de_Referencia_de_campanas[tipo_de_promo] * desde),(Transaciones_de_Referencia_de_campanas[tipo_de_promo] * hasta )) 
+    if (Transacciones_ratio_temp>0.99){
+        Transacciones_ratio_temp = 0.99
+    }
+    matriz_campanas[i,9] <-  round( as.numeric(matriz_campanas[i,8] ) * Transacciones_ratio_temp )+1
+  # Ecommerce
+    Roi_ratio_temp <- runif(1,(Roi_de_Referencia_de_campanas[tipo_de_promo] * desde),(Roi_de_Referencia_de_campanas[tipo_de_promo] * hasta )) 
+    matriz_campanas[i,10] <- round ( as.numeric(matriz_campanas[i,5] ) * Roi_ratio_temp )
+  # Goals
+    Goals_ratio_temp <- runif(1,(Goals_de_Referencia_de_campanas[tipo_de_promo] * desde),(Goals_de_Referencia_de_campanas[tipo_de_promo] * hasta )) 
+    if (Goals_ratio_temp>0.99){
+        Goals_ratio_temp = 0.99
+     }
+     matriz_campanas[i,11] <- round ( as.numeric(matriz_campanas[i,6] ) * Goals_ratio_temp )      
+  # Nombre 
+    CPC_temp_n <- round(as.numeric(CPC_temp),4) 
+    Roi_ratio_temp_n <-  round(as.numeric(Roi_ratio_temp),2)
+    matriz_campanas[i,2] <- paste(matriz_campanas[i,3], matriz_campanas[i,1], "CPC", CPC_temp_n, "ROI",Roi_ratio_temp_n )
+    
+  # Indices
+    matriz_campanas_indices[i,] <-  c( i, "CPM", CPC_temp,Bounce_ratio_temp, "CPCe", "CPA", Roi_ratio_temp, "TicketMedio" )
+    matriz_campanas_indices[i,8] <-  as.numeric(matriz_campanas[i,10]) / as.numeric(matriz_campanas[i,9])
+    matriz_campanas_indices[i,5] <-  as.numeric(matriz_campanas[i,5]) / as.numeric(matriz_campanas[i,8])
+    matriz_campanas_indices[i,2] <-  as.numeric(matriz_campanas[i,5]) * 1000 / as.numeric(matriz_campanas[i,4])
+    matriz_campanas_indices[i,6] <-  as.numeric(matriz_campanas[i,5])  / as.numeric(matriz_campanas[i,9])
+  } 
+
+# -----------------------------------------------------
+# Output
+# -----------------------------------------------------
+  matriz_campanas
+  #matriz_campanas_indices
+```
+
+
+¿Te encajan el Dataset? Si no es asi, cambia los parámetros y vuelve a generar un nuevo dataset 
+
+<b> Paso 2. Generar registro de sesiones </b>
+
+Si te encaja el resumen superior configura las variables ejecuta el código para tener un dataframe con "ID_campana", "dispositivo", "Ad_cost", "Date", "Click", "Bounces", "Sesions", "Transacciones", "Ecomerce", "Goal", "estado"
+  
+```{r}
+
+# -----------------------------------------------------
+# Configuración
+# -----------------------------------------------------
+# Configuración Temporal
+  Fecha_inicio <- as.Date('2020/09/01 00:00:01')
+  Fecha_fin <- as.Date('2020/09/30 23:59:59')
+# Configuración Dispositivos
+  Dispositivos <- c("Desktop", "Tablet", "Movile") 
+  Prob_Dispositivos <- c(30, 5, 90)
+
+# -----------------------------------------------------
+# CODIGO
+# -----------------------------------------------------
+  for(i in 1:Num_campanas) {
+      sesiones = as.integer(matriz_campanas[i,8])
+      matriz_Campana_dia_a_dia <<-  matrix( 0, sesiones, 11 )
+      colnames(matriz_Campana_dia_a_dia) <- c("ID_campana", "dispositivo", "Ad_cost", "Date", "Click", "Bounces", "Sesions", "Transacciones", "Ecomerce", "Goal", "estado") 
+      matriz_Campana_dia_a_dia[,1] = i #Id_Campaña
+      matriz_Campana_dia_a_dia[,5] = 1 #Click
+      matriz_Campana_dia_a_dia[,7] = 1 #sesion
+    # Fechas Aleatorias
+      Fechas_aleatorias_temp <- sample(seq(as.POSIXct(Fecha_inicio), as.POSIXct(Fecha_fin), by = "min"), sesiones, replace=TRUE)
+           matriz_Campana_dia_a_dia[,4]  <-  as.character.Date(Fechas_aleatorias_temp [], "%Y/%m/%d %H:%M:%S")
+    # Tipo de dispositivo
+          matriz_Campana_dia_a_dia[,2]  <-  sample(Dispositivos[], sesiones, replace= TRUE, prob= Prob_Dispositivos[])
+
+    # Coste
+       costes_aleatorios_temp <- round( runif(sesiones, ((as.numeric(matriz_campanas[i,5]) / sesiones ) * desde) ,((as.numeric(matriz_campanas[i,5])/sesiones ) * hasta) ) ,6)   
+       matriz_Campana_dia_a_dia[,3]  <- costes_aleatorios_temp
+    # Transacciones
+       Transaciones = as.integer(matriz_campanas[i,9])
+       for (Transaciones_i in 1:Transaciones) {
+            matriz_Campana_dia_a_dia[Transaciones_i,8] = 1 + as.numeric(matriz_Campana_dia_a_dia[Transaciones_i,8] )
+    # EcomerceValue
+            Coste_medio_temp = as.integer(matriz_campanas[i,10])/Transaciones
+            Coste_medio = round(runif(1,Coste_medio_temp * desde , Coste_medio_temp * hasta),2 )
+            matriz_Campana_dia_a_dia[Transaciones_i,9] = Coste_medio + as.numeric( matriz_Campana_dia_a_dia[Transaciones_i,9])#Ecommerce
+        }
+   # Bounce 
+        Bounce = as.integer(matriz_campanas[i,7])
+        vector_sesiones_con_Bounce = sample(0:sesiones,Bounce,replace=TRUE) 
+        for (Bounce_i in 1:Bounce) {
+             matriz_Campana_dia_a_dia[vector_sesiones_con_Bounce[Bounce_i],6] <- 1 + as.integer(matriz_Campana_dia_a_dia[vector_sesiones_con_Bounce[Bounce_i],6] ) 
+             matriz_Campana_dia_a_dia[vector_sesiones_con_Bounce[Bounce_i],5] <- 1 + as.integer(matriz_Campana_dia_a_dia[vector_sesiones_con_Bounce[Bounce_i],5])  
+         }
+    # Goals
+          Goals = as.integer(matriz_campanas[i,11])
+          vector_sesiones_con_Goal = sample(0:sesiones,Goals,replace=TRUE) 
+          for (goals_i in 1:Goals) {
+              matriz_Campana_dia_a_dia[vector_sesiones_con_Goal[goals_i],10] <- 1 + as.integer(matriz_Campana_dia_a_dia[vector_sesiones_con_Goal[goals_i],10] )           
+          }
+    # dataframe
+          if (i==1) {
+              Campana_dataframe <- as.data.frame(matriz_Campana_dia_a_dia)
+           } else {
+              Campana_dataframe_temp <- as.data.frame(matriz_Campana_dia_a_dia)
+              Campana_dataframe = rbind(Campana_dataframe, Campana_dataframe_temp )
+           }
+  }
+```
+
+
+## Paso 3. Exportar los datos a CSV 
+
+<b>Configura la ruta</b> donde deseas alamacenar los CSV <b>y ejecuta</b> el código.
+
+Esta opción genera un dataset compuesto por:
+- Un CSV con el registro de sesiones 
+- Un CSV con el resumen por campaña
+- Un CSV con los indices de cada campaña
+
+```{r}
+# -----------------------------------------------------
+# Configuración
+# -----------------------------------------------------
+# Incluye la ruta interna donde deseas generar los archivos. 
+  path = "/Users/isdi/Documents/Google_Analytics_Generator/" # Si lo deseas puedes ejecutar [ path_completo = file.choose(new = TRUE)  ] para conocer la ruta interna.
+
+# -----------------------------------------------------
+# Código
+# -----------------------------------------------------
+  # Puntos
+    CSV_Campanas_diario = paste(path, "CSV_Campanas_por_dia.csv", sep = ",", collapse = NULL) 
+    write.csv(Campana_dataframe, file=CSV_Campanas_diario)
+  # Resumen
+    CSV_Campanas_resumen = paste(path, "CSV_Campanas_resumen.csv", sep = ",", collapse = NULL) 
+    write.csv(matriz_campanas, file=CSV_Campanas_resumen)
+  # Indices
+    CSV_Campanas_indices = paste(path, "CSV_Campanas_indices.csv", sep = ",", collapse = NULL) 
+    write.csv(matriz_campanas_indices, file=CSV_Campanas_indices)
+
+# -----------------------------------------------------
+# Outut
+# -----------------------------------------------------
+# CSV_Campanas.csv
+# CSV_Campanas_resumen.csv
+# CSV_Campanas_indices.csv
+   
+```
+
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
